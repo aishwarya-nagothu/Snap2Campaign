@@ -1,4 +1,4 @@
-"""Campaign Creator – Phase 1 prototype.
+"""Snap2Campaign – Phase 1 prototype.
 
 Evolved from the AI Content Engine base to demonstrate the iQOO hackathon concept:
   "A small seller points their phone at a product and receives a complete
@@ -22,29 +22,212 @@ from video_gen import generate_video
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Campaign Creator",
-    page_icon="📣",
-    layout="centered",   # centred feels more phone-like than wide
+    page_title="Snap2Campaign",
+    page_icon="⚡",
+    layout="wide",                   # use full browser width; CSS caps at 1080px
     initial_sidebar_state="collapsed",
 )
 
-# ── Minimal custom CSS – tightens spacing on narrow viewports ─────────────────
+# ── Design system (dark theme) ────────────────────────────────────────────────
 st.markdown(
     """
     <style>
-    /* Reduce top padding so the header sits higher on mobile */
-    .block-container { padding-top: 2rem; padding-bottom: 2rem; }
-    /* Make the primary button full-width and a bit taller */
-    div.stButton > button[kind="primary"] { width: 100%; padding: 0.65rem 1rem; font-size: 1.05rem; }
-    /* Slightly larger tab text */
-    button[data-baseweb="tab"] { font-size: 0.95rem; }
+    /* ── Google Font ── */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    html, body, [class*="css"], .stApp {
+        font-family: 'Inter', sans-serif;
+        background-color: #0d1117;
+        color: #e2e8f0;
+    }
+
+    /* ── Page shell: centred column, max 1160px, compact vertical rhythm ── */
+    .block-container {
+        max-width: 1160px !important;
+        padding: 1.6rem 2.5rem 3rem !important;
+        margin: 0 auto;
+    }
+
+    /* ── Brand header ── */
+    .s2c-header {
+        text-align: center;
+        padding: 1rem 0 1.2rem;
+    }
+    .s2c-wordmark {
+        font-size: 2.6rem;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        color: #f1f5f9;            /* light/white so it reads on dark bg */
+        line-height: 1;
+        margin-bottom: 0.3rem;
+    }
+    .s2c-wordmark span {
+        color: #818cf8;            /* indigo-400 accent for the "2" */
+    }
+    .s2c-tagline {
+        font-size: 1rem;
+        color: #64748b;
+        font-weight: 400;
+        margin: 0;
+    }
+
+    /* ── Field labels above each control ── */
+    .field-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #64748b;
+        margin-bottom: 0.3rem;
+    }
+
+    /* ── Input card wrappers ── */
+    .s2c-card {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 10px;
+        padding: 1rem 1.1rem 0.9rem;
+        margin-bottom: 0.75rem;
+    }
+
+    /* ── Override Streamlit's default widget label to zero-margin
+           (we're rendering our own labels above) ── */
+    .stTextInput label, .stSelectbox label, .stFileUploader label {
+        display: none !important;
+    }
+
+    /* ── Make widgets fill their column ── */
+    .stTextInput > div, .stSelectbox > div {
+        width: 100% !important;
+    }
+
+    /* ── Primary CTA button ── */
+    div.stButton > button[kind="primary"] {
+        width: 100%;
+        padding: 0.72rem 1rem;
+        font-size: 1rem;
+        font-weight: 700;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        border: none;
+        color: #ffffff;
+        letter-spacing: 0.01em;
+        box-shadow: 0 4px 18px rgba(99, 102, 241, 0.38);
+        transition: opacity 0.15s;
+    }
+    div.stButton > button[kind="primary"]:hover { opacity: 0.86; }
+
+    /* ── Output campaign header ── */
+    .s2c-output-header {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 1.2rem 0 0.2rem;
+    }
+    .s2c-output-title {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #f1f5f9;
+        letter-spacing: -0.02em;
+    }
+    .s2c-badge-success {
+        background: #14532d;
+        color: #4ade80;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        padding: 0.2rem 0.65rem;
+        border-radius: 999px;
+    }
+
+    /* ── Output section labels ── */
+    .s2c-section-label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #475569;
+        margin: 1.4rem 0 0.45rem;
+    }
+
+    /* ── Tagline ── */
+    .s2c-tagline-display {
+        font-size: 1.65rem;
+        font-weight: 700;
+        color: #f1f5f9;
+        line-height: 1.25;
+        letter-spacing: -0.025em;
+        padding: 0.5rem 0;
+    }
+
+    /* ── Social copy card ── */
+    .s2c-copy-card {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 10px;
+        padding: 1rem 1.15rem;
+        font-size: 0.94rem;
+        line-height: 1.7;
+        color: #cbd5e1;
+        white-space: pre-wrap;
+        margin-bottom: 0.65rem;
+    }
+
+    /* ── Tab text ── */
+    button[data-baseweb="tab"] {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #94a3b8;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: #818cf8;
+    }
+
+    /* ── Hero image container: capped width, centred ── */
+    .s2c-hero-wrap {
+        max-width: 780px;
+        margin: 0 auto;
+    }
+
+    /* ── Dividers ── */
+    hr {
+        border-color: #1e293b;
+        margin: 1.2rem 0;
+    }
+
+    /* ── Empty state ── */
+    .s2c-empty {
+        text-align: center;
+        padding: 0.6rem 1rem 0.3rem;
+        color: #475569;
+        font-size: 0.88rem;
+    }
+    .s2c-steps {
+        display: flex;
+        justify-content: center;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+        margin-top: 0.3rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #475569;
+        letter-spacing: 0.03em;
+    }
+    .s2c-step-sep { color: #334155; }
+
+    /* ── Responsive: single column on narrow viewports ── */
+    @media (max-width: 640px) {
+        .block-container { padding: 1rem 1rem 2rem !important; }
+        .s2c-wordmark { font-size: 2rem; }
+    }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Helpers (unchanged) ───────────────────────────────────────────────────────
 
 def get_artifacts_dir() -> Path:
     """Return (and create) the artifacts output directory."""
@@ -69,70 +252,129 @@ def save_uploaded_photo(uploaded_file, artifacts_dir: Path) -> Path:
     return dest
 
 
-# ── Header ────────────────────────────────────────────────────────────────────
-st.title("📣 Campaign Creator")
-st.caption("Point at a product. Get a complete ad campaign.")
-
-st.divider()
+# ── Brand header ──────────────────────────────────────────────────────────────
+st.markdown(
+    """
+    <div class="s2c-header">
+        <div class="s2c-wordmark">Snap<span>2</span>Campaign</div>
+        <p class="s2c-tagline">Turn a product into a campaign.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ── Input form ────────────────────────────────────────────────────────────────
-# All inputs live in the main body (no sidebar) so they read naturally on a
-# phone-sized browser window.
 
-uploaded_photo = st.file_uploader(
-    "Product Photo  *(optional)*",
-    type=["jpg", "jpeg", "png", "webp"],
-    help="Upload a photo of your product. Shown alongside the campaign for reference.",
-)
-
-product = st.text_input(
-    "Product Name / Description",
-    placeholder="e.g.  iQOO Neo 9 Pro  —  flagship gaming phone with 144 Hz display",
-    help="Give the product a name and optionally a short description.",
-)
-
-ad_goal = st.selectbox(
-    "Advertising Goal",
-    options=AD_GOALS,
-    help="What is the purpose of this campaign?",
-)
-
-# Audience: preset dropdown + optional custom free-text field
-audience_choice = st.selectbox(
-    "Target Audience",
-    options=AUDIENCE_OPTIONS,
-    help="Who are you trying to reach?",
-)
-if audience_choice == "Custom…":
-    audience = st.text_input(
-        "Describe your audience",
-        placeholder="e.g.  small business owners in tier-2 cities",
+# — Product photo (full width) —
+st.markdown('<p class="field-label">📸 &nbsp;Product Photo &nbsp;<span style="font-weight:400;text-transform:none;letter-spacing:0;color:#334155">(optional)</span></p>', unsafe_allow_html=True)
+with st.container(border=True):
+    uploaded_photo = st.file_uploader(
+        "Product photo",
+        type=["jpg", "jpeg", "png", "webp"],
+        label_visibility="collapsed",
+        help="If AI image generation is unavailable, your photo will be used as the campaign visual.",
     )
-else:
-    audience = audience_choice
+    if uploaded_photo is None:
+        st.caption("Drag & drop or browse  ·  JPG, PNG, WEBP")
 
-tone = st.selectbox(
-    "Theme / Tone",
-    options=list(TONE_STYLES.keys()),
-    format_func=str.capitalize,
-    help="Visual and copy personality for the campaign.",
-)
+st.write("")   # small gap before the 2-col grid
 
-st.write("")   # small spacer
-create_btn = st.button("🚀  Create Campaign", type="primary")
+# — 2-column input grid —
+col_left, col_right = st.columns(2, gap="medium")
+
+with col_left:
+    # Product
+    st.markdown('<p class="field-label">✏️ &nbsp;Product</p>', unsafe_allow_html=True)
+    with st.container(border=True):
+        product = st.text_input(
+            "Product name or description",
+            placeholder="e.g.  iQOO Neo 9 Pro — 144 Hz gaming phone",
+            label_visibility="collapsed",
+        )
+
+    # Target Audience
+    st.markdown('<p class="field-label">👥 &nbsp;Target Audience</p>', unsafe_allow_html=True)
+    with st.container(border=True):
+        audience_choice = st.selectbox(
+            "Target Audience",
+            options=AUDIENCE_OPTIONS,
+            label_visibility="collapsed",
+        )
+        if audience_choice == "Custom…":
+            audience = st.text_input(
+                "Describe your audience",
+                placeholder="e.g.  small business owners in tier-2 cities",
+                label_visibility="collapsed",
+            )
+        else:
+            audience = audience_choice
+
+with col_right:
+    # Advertising Goal
+    st.markdown('<p class="field-label">🎯 &nbsp;Advertising Goal</p>', unsafe_allow_html=True)
+    with st.container(border=True):
+        ad_goal = st.selectbox(
+            "Advertising Goal",
+            options=AD_GOALS,
+            label_visibility="collapsed",
+        )
+
+    # Brand Tone
+    st.markdown('<p class="field-label">🎨 &nbsp;Brand Tone</p>', unsafe_allow_html=True)
+    with st.container(border=True):
+        tone = st.selectbox(
+            "Brand Tone",
+            options=list(TONE_STYLES.keys()),
+            format_func=str.capitalize,
+            label_visibility="collapsed",
+        )
+
+# — CTA (centred) —
+st.write("")
+_, btn_col, _ = st.columns([1, 2, 1])
+with btn_col:
+    create_btn = st.button("⚡  Create Campaign", type="primary")
+
+# — Empty state (compact, shown only before first click) —
+if not create_btn:
+    st.markdown(
+        """
+        <div class="s2c-empty">
+            <div class="s2c-steps">
+                <span>Upload</span>
+                <span class="s2c-step-sep">&nbsp;→&nbsp;</span>
+                <span>Describe</span>
+                <span class="s2c-step-sep">&nbsp;→&nbsp;</span>
+                <span>Create</span>
+                <span class="s2c-step-sep">&nbsp;→&nbsp;</span>
+                <span>Get Campaign</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # ── Generation pipeline ───────────────────────────────────────────────────────
 if create_btn:
     # Validate required fields
     if not product:
-        st.error("Please enter a Product Name / Description.")
+        st.error("Please enter a product name or description.")
         st.stop()
     if not audience:
-        st.error("Please describe your Target Audience.")
+        st.error("Please describe your target audience.")
         st.stop()
 
+    # Output header
+    st.markdown(
+        """
+        <div class="s2c-output-header">
+            <span class="s2c-output-title">Your Campaign</span>
+            <span class="s2c-badge-success">READY</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     st.divider()
-    st.subheader("✅  Campaign Generated")
 
     artifacts_dir = get_artifacts_dir()
 
@@ -150,7 +392,7 @@ if create_btn:
     used_photo_fallback: bool = False  # True when the uploaded photo is the hero visual
     image_prompt: str = ""
 
-    with st.spinner("Generating hero advertisement visual…"):
+    with st.spinner("Creating hero visual…"):
         try:
             image_url, image_prompt = generate_image(
                 product, audience, tone, tagline="", ad_goal=ad_goal
@@ -160,16 +402,16 @@ if create_btn:
             # Surface the specific failure reason so it is never hidden.
             if "billing_hard_limit_reached" in err or "Billing hard limit" in err:
                 st.warning(
-                    "⚠️ AI image generation failed: OpenAI spending limit reached. "
-                    "Raise it at [OpenAI Billing](https://platform.openai.com/settings/organization/billing)."
+                    "AI image generation is currently unavailable (spending limit reached). "
+                    "Using your uploaded photo as the campaign visual."
                 )
             elif "402" in err or "credits" in err.lower():
                 st.warning(
-                    "⚠️ AI image generation failed: insufficient OpenRouter credits. "
-                    "Top up at [OpenRouter Settings](https://openrouter.ai/settings/credits)."
+                    "AI image generation is currently unavailable (credits needed). "
+                    "Using your uploaded photo as the campaign visual."
                 )
             else:
-                st.warning(f"⚠️ AI image generation failed: {e}")
+                st.warning("AI image generation is currently unavailable. Using your uploaded photo.")
 
             # Attempt fallback to the uploaded product photo.
             if uploaded_photo_path is not None and uploaded_photo_path.exists():
@@ -177,15 +419,15 @@ if create_btn:
             else:
                 # No photo uploaded and AI failed — cannot continue.
                 st.error(
-                    "Campaign generation stopped: no hero visual is available. "
-                    "Upload a product photo to continue without AI image generation."
+                    "No campaign visual available. "
+                    "Upload a product photo to generate a campaign without AI image generation."
                 )
                 st.stop()
 
     if not used_photo_fallback:
         # AI generation succeeded — download to local PNG for video fallback.
         hero_path = artifacts_dir / "hero_image.png"
-        with st.spinner("Downloading hero image…"):
+        with st.spinner("Preparing hero image…"):
             try:
                 hero_path = download_image(image_url, hero_path)
             except Exception as e:
@@ -219,39 +461,30 @@ if create_btn:
             hero_path.write_bytes(uploaded_photo_path.read_bytes())
 
     # ── Hero visual display ───────────────────────────────────────────────────
-    st.subheader("🖼️  Hero Advertisement")
+    st.markdown('<div class="s2c-section-label">Hero Visual</div>', unsafe_allow_html=True)
 
-    if used_photo_fallback:
-        st.info(
-            "📸 **Uploaded product photo used as fallback visual.** "
-            "AI image generation was unavailable (see warning above). "
-            "The rest of the campaign — tagline, social copy, and video — "
-            "has been generated from your product description."
-        )
-        st.image(str(hero_path), use_container_width=True,
-                 caption="Hero visual: your uploaded product photo (campaign frame applied)")
-        st.caption(
-            "ℹ️ *Phase 1 limitation: when OpenRouter credits are unavailable, the uploaded "
-            "product photo is used in place of an AI-generated hero image. "
-            "AI visual generation will resume once credits are restored.*"
-        )
-    else:
-        st.image(image_url, use_container_width=True)
-        with st.expander("Image prompt used"):
-            st.caption(image_prompt)
+    # Cap the hero image at ~780px centred — avoids full-bleed stretch on wide screens.
+    hero_col, _ = st.columns([2, 1])
+    with hero_col:
+        if used_photo_fallback:
+            st.image(str(hero_path), use_container_width=True)
+        else:
+            st.image(image_url, use_container_width=True)
+            with st.expander("View image prompt"):
+                st.caption(image_prompt)
 
     st.divider()
 
     # ── Stage 2: Tagline ──────────────────────────────────────────────────────
-    with st.spinner("Writing campaign tagline…"):
+    with st.spinner("Writing tagline…"):
         try:
             tagline = generate_tagline(product, audience, tone, ad_goal=ad_goal)
         except Exception as e:
             st.error(f"Tagline generation failed: {e}")
             st.stop()
 
-    st.subheader("🏷️  Tagline")
-    st.markdown(f"### *{tagline}*")
+    st.markdown('<div class="s2c-section-label">Campaign Tagline</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="s2c-tagline-display">{tagline}</div>', unsafe_allow_html=True)
 
     st.divider()
 
@@ -265,25 +498,56 @@ if create_btn:
                 product, audience, tone, blog, tagline, ad_goal=ad_goal
             )
         except json.JSONDecodeError as e:
-            st.error(f"Social posts returned invalid JSON: {e}")
+            st.error(f"Social media copy generation failed: {e}")
             st.stop()
         except Exception as e:
             st.error(f"Social media copy generation failed: {e}")
             st.stop()
 
-    st.subheader("📱  Social Media Copy")
-    tab_ig, tab_li, tab_tw = st.tabs(["Instagram", "LinkedIn", "X / Twitter"])
-    with tab_ig:
-        st.write(posts.get("instagram", ""))
-    with tab_li:
-        st.write(posts.get("linkedin", ""))
-    with tab_tw:
-        st.write(posts.get("twitter", ""))
+    st.markdown('<div class="s2c-section-label">Social Media Content</div>', unsafe_allow_html=True)
+
+    # Social tabs in a readable column (not full bleed)
+    social_col, _ = st.columns([2, 1])
+    with social_col:
+        tab_ig, tab_li, tab_tw = st.tabs(["Instagram", "LinkedIn", "X / Twitter"])
+        with tab_ig:
+            ig_text = posts.get("instagram", "")
+            st.markdown(f'<div class="s2c-copy-card">{ig_text}</div>', unsafe_allow_html=True)
+            st.download_button(
+                "⬇ Download Instagram copy",
+                data=ig_text,
+                file_name="instagram_copy.txt",
+                mime="text/plain",
+                use_container_width=True,
+            )
+        with tab_li:
+            li_text = posts.get("linkedin", "")
+            st.markdown(f'<div class="s2c-copy-card">{li_text}</div>', unsafe_allow_html=True)
+            st.download_button(
+                "⬇ Download LinkedIn copy",
+                data=li_text,
+                file_name="linkedin_copy.txt",
+                mime="text/plain",
+                use_container_width=True,
+            )
+        with tab_tw:
+            tw_text = posts.get("twitter", "")
+            st.markdown(f'<div class="s2c-copy-card">{tw_text}</div>', unsafe_allow_html=True)
+            st.download_button(
+                "⬇ Download X copy",
+                data=tw_text,
+                file_name="x_copy.txt",
+                mime="text/plain",
+                use_container_width=True,
+            )
 
     st.divider()
 
     # ── Stage 4: Promotional video ────────────────────────────────────────────
-    st.subheader("🎬  Promotional Video")
+    st.markdown('<div class="s2c-section-label">Promotional Video</div>', unsafe_allow_html=True)
+
+    local_video_path = artifacts_dir / "hero_video.mp4"
+
     try:
         # Runway requires a publicly accessible image URL. Skip the cloud attempt
         # when we are in fallback mode (no remote URL exists) so we go straight to
@@ -291,28 +555,51 @@ if create_btn:
         if image_url is None:
             raise RuntimeError("No remote image URL available; using local video fallback.")
 
-        with st.spinner("Generating promotional video — this can take ~60 s…"):
+        with st.spinner("Generating promotional video — this may take ~60 s…"):
             video_url = generate_video(
                 image_url, product, tone, tagline, ad_goal=ad_goal
             )
         st.video(video_url)
 
     except Exception:
-        st.info("Cloud video unavailable — rendering a local preview from the hero image.")
         if hero_path is not None and hero_path.exists():
-            local_video_path = artifacts_dir / "hero_video.mp4"
-            with st.spinner("Rendering local preview…"):
+            with st.spinner("Rendering video…"):
                 try:
                     create_ken_burns(str(hero_path), str(local_video_path), duration=VIDEO_DURATION)
                     st.video(str(local_video_path))
                 except Exception as fallback_error:
-                    st.error(f"Local video fallback also failed: {fallback_error}")
+                    st.error(f"Video rendering failed: {fallback_error}")
         else:
-            st.error("Video preview unavailable: hero image could not be downloaded.")
+            st.error("Video unavailable: hero image could not be prepared.")
 
     st.divider()
-    st.success("Campaign ready! 🎉")
 
-else:
-    # Empty state – friendly prompt
-    st.info("Fill in the details above and press **🚀 Create Campaign** to generate your campaign.")
+    # ── Download section ──────────────────────────────────────────────────────
+    st.markdown('<div class="s2c-section-label">Download Assets</div>', unsafe_allow_html=True)
+
+    dl_col1, dl_col2, dl_col3 = st.columns([1, 1, 2])
+
+    with dl_col1:
+        if hero_path is not None and hero_path.exists():
+            with open(hero_path, "rb") as f:
+                st.download_button(
+                    "⬇ Hero Image",
+                    data=f,
+                    file_name="hero_image.png",
+                    mime="image/png",
+                    use_container_width=True,
+                )
+
+    with dl_col2:
+        if local_video_path.exists():
+            with open(local_video_path, "rb") as f:
+                st.download_button(
+                    "⬇ Promo Video",
+                    data=f,
+                    file_name="promo_video.mp4",
+                    mime="video/mp4",
+                    use_container_width=True,
+                )
+
+    st.write("")
+    st.success("Campaign complete — ready to publish. ⚡")
