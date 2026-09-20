@@ -4,13 +4,36 @@ import httpx
 from openai import OpenAI
 from config import OPENROUTER_IMAGE_API_KEY, OPENROUTER_BASE_URL, IMAGE_MODEL, TONE_STYLES
 
+# The httpx client is shared across all image requests to allow connection reuse.
+# It is created unconditionally because it has no dependency on API keys.
 _httpx_client = httpx.Client()
 atexit.register(_httpx_client.close)
-_client = OpenAI(
-    api_key=OPENROUTER_IMAGE_API_KEY,
-    base_url=OPENROUTER_BASE_URL,
-    http_client=_httpx_client,
-)
+
+# The OpenAI image client is initialised lazily the first time generate_image()
+# is called.  Deferring initialisation avoids a crash on Streamlit Cloud (or any
+# environment) where OPENROUTER_IMAGE_API_KEY is not set, because app.py already
+# handles the missing-key case via its existing image-generation fallback path.
+_client: OpenAI | None = None
+
+
+def _get_client() -> OpenAI:
+    """Return the shared OpenAI image client, creating it on first use.
+
+    Raises RuntimeError when OPENROUTER_IMAGE_API_KEY is absent so the caller
+    can fall back gracefully rather than receiving a cryptic OpenAI error.
+    """
+    global _client
+    if _client is None:
+        if not OPENROUTER_IMAGE_API_KEY:
+            raise RuntimeError(
+                "OPENROUTER_IMAGE_API_KEY is not set; AI image generation is unavailable."
+            )
+        _client = OpenAI(
+            api_key=OPENROUTER_IMAGE_API_KEY,
+            base_url=OPENROUTER_BASE_URL,
+            http_client=_httpx_client,
+        )
+    return _client
 
 
 def build_image_prompt(product: str, audience: str, tone: str, tagline: str, ad_goal: str = "") -> str:
@@ -71,7 +94,7 @@ def generate_image(product: str, audience: str, tone: str, tagline: str, ad_goal
     (image_url, prompt_used)
     """
     prompt = build_image_prompt(product, audience, tone, tagline, ad_goal=ad_goal)
-    resp = _client.chat.completions.create(
+    resp = _get_client().chat.completions.create(
         model=IMAGE_MODEL,
         messages=[{"role": "user", "content": prompt}],
         max_tokens=1024,
