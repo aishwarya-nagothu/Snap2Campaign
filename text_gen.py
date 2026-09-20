@@ -7,13 +7,37 @@ import time
 from openai import OpenAI
 from config import OPENROUTER_API_KEY, OPENROUTER_BASE_URL, TEXT_MODEL, TONE_STYLES
 
+# The httpx client is shared across all text requests and is created
+# unconditionally because it has no dependency on API keys.
 _httpx_client = httpx.Client()
 atexit.register(_httpx_client.close)
-_client = OpenAI(
-    api_key=OPENROUTER_API_KEY,
-    base_url=OPENROUTER_BASE_URL,
-    http_client=_httpx_client,
-)
+
+# The OpenAI text client is initialised lazily on first use.  Deferring
+# initialisation prevents a crash (openai>=2.34 raises OpenAIError when
+# api_key="") when OPENROUTER_API_KEY is not yet available at import time —
+# for example on Streamlit Cloud before secrets are resolved.  The existing
+# try/except blocks in app.py handle any failure surfaced at call time.
+_client: OpenAI | None = None
+
+
+def _get_client() -> OpenAI:
+    """Return the shared OpenAI text client, creating it on first use.
+
+    Raises RuntimeError when OPENROUTER_API_KEY is absent so callers receive
+    a clear error rather than a cryptic OpenAI authentication failure.
+    """
+    global _client
+    if _client is None:
+        if not OPENROUTER_API_KEY:
+            raise RuntimeError(
+                "OPENROUTER_API_KEY is not set; text generation is unavailable."
+            )
+        _client = OpenAI(
+            api_key=OPENROUTER_API_KEY,
+            base_url=OPENROUTER_BASE_URL,
+            http_client=_httpx_client,
+        )
+    return _client
 
 # ── Few-shot examples per tone ──────────────────────────────────────────────
 _TAGLINE_EXAMPLES: dict[str, list[tuple[str, str]]] = {
@@ -42,7 +66,7 @@ def _chat(messages: list[dict], max_tokens: int = 240, retries: int = 3) -> str:
     """
     for attempt in range(retries):
         try:
-            resp = _client.chat.completions.create(
+            resp = _get_client().chat.completions.create(
                 model=TEXT_MODEL,
                 messages=messages,
                 max_tokens=max_tokens,
@@ -97,7 +121,7 @@ def probe_affordance(max_probe: int = 256, ttl: int = 30) -> int | None:
 
     while tokens <= max_probe:
         try:
-            resp = _client.chat.completions.create(
+            resp = _get_client().chat.completions.create(
                 model=TEXT_MODEL,
                 messages=probe_messages,
                 max_tokens=tokens,
