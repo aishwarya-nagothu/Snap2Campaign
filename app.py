@@ -432,7 +432,11 @@ if create_btn:
                 hero_path = download_image(image_url, hero_path)
             except Exception as e:
                 st.warning(f"Could not download hero image; showing remote preview only. {e}")
-                hero_path = None
+                # If the download fails but the user uploaded a photo, use it
+                # as the local image source for Ken Burns video generation.
+                hero_path = uploaded_photo_path if (
+                    uploaded_photo_path is not None and uploaded_photo_path.exists()
+                ) else None
     else:
         # Use the uploaded photo as the hero image.
         # Apply a light PIL presentation treatment: convert to RGB PNG, add a
